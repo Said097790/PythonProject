@@ -1,5 +1,6 @@
 import pygame
 import sys
+from random import randint
 
 # 1. Инициализация
 pygame.init()
@@ -9,16 +10,21 @@ WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Меню")
 
+#Всякие переменные (только саид видимо сможет их понять)
+Bg_flag = True
+
 # Цвета
-BG_COLOR = (255, 255, 255)       
-BUTTON_COLOR = (30, 144, 255)    
-HOVER_COLOR = (65, 105, 225)     
-DARK_OVERLAY = (0, 0, 0, 150)    
+BG_COLOR_TEMA_MENU_1 = (20, 20, 20)
+BG_COLOR_TEMA_MENU_2 = (255, 255, 255)
+BUTTON_COLOR_MENU = (30, 144, 255)
+HOVER_COLOR_MENU = (65, 105, 225)
+DARK_OVERLAY_MENU = (0, 0, 0, 150)
 
 # Шрифты
 font_large = pygame.font.Font(None, 60)   
 font_medium = pygame.font.Font(None, 36)  
-font_small = pygame.font.Font(None, 32)   
+font_small = pygame.font.Font(None, 32)
+
 
 # --- Класс кнопки ---
 class Button:
@@ -29,7 +35,7 @@ class Button:
         self.is_hovered = False
 
     def draw(self, surface):
-        current_color = HOVER_COLOR if self.is_hovered else BUTTON_COLOR
+        current_color = HOVER_COLOR_MENU if self.is_hovered else BUTTON_COLOR_MENU
         pygame.draw.rect(surface, current_color, self.rect, width=4, border_radius=12)
         
         text_surf = self.font.render(self.text, True, current_color)
@@ -56,13 +62,13 @@ class Slider:
         self.handle_pos = (x + (width * value / 100), y + 5)
 
     def draw(self, surface):
-        text_surf = font_small.render(self.text, True, BUTTON_COLOR)
+        text_surf = font_small.render(self.text, True, BUTTON_COLOR_MENU)
         surface.blit(text_surf, (self.rect.x, self.rect.y - 25))
         
         pygame.draw.rect(surface, (200, 200, 200), self.rect, border_radius=5)
         fill_rect = pygame.Rect(self.rect.x, self.rect.y, self.handle_pos[0] - self.rect.x, 10)
-        pygame.draw.rect(surface, BUTTON_COLOR, fill_rect, border_radius=5)
-        pygame.draw.circle(surface, BUTTON_COLOR, (int(self.handle_pos[0]), int(self.handle_pos[1])), self.handle_radius)
+        pygame.draw.rect(surface, BUTTON_COLOR_MENU, fill_rect, border_radius=5)
+        pygame.draw.circle(surface, BUTTON_COLOR_MENU, (int(self.handle_pos[0]), int(self.handle_pos[1])), self.handle_radius)
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -77,6 +83,8 @@ class Slider:
             self.handle_pos = (new_x, self.rect.y + 5)
 
 # --- Главное меню ---
+#верхний правый угл
+btn_tema = Button(690, 10, 100, 50, "Tема", font_small)
 # Верхняя кнопка
 btn_play = Button(WIDTH//2 - 150, 150, 300, 80, "PLAY", font_large)
 
@@ -84,7 +92,7 @@ btn_play = Button(WIDTH//2 - 150, 150, 300, 80, "PLAY", font_large)
 btn_save = Button(WIDTH//2 - 270, 300, 250, 80, "Сохранение", font_medium)
 btn_settings = Button(WIDTH//2 + 20, 300, 250, 80, "Настройки", font_medium)
 
-menu_buttons = [btn_play, btn_save, btn_settings]
+menu_buttons = [btn_play, btn_save, btn_settings, btn_tema]
 
 # --- Настройки игры ---
 SETTINGS_W, SETTINGS_H = 400, 350
@@ -112,7 +120,10 @@ while running:
             if btn_save.check_click(mouse_pos, event):
                 print("Нажата кнопка СОХРАНЕНИЕ!")
             if btn_settings.check_click(mouse_pos, event):
-                show_settings = True 
+                show_settings = True
+            if btn_tema.check_click(mouse_pos, event):
+                Bg_flag = not Bg_flag
+                print("Смена темы")
         else:
             if btn_close.check_click(mouse_pos, event):
                 show_settings = False 
@@ -121,7 +132,8 @@ while running:
             slider_sfx.handle_event(event)
 
     # --- Отрисовка ---
-    screen.fill(BG_COLOR)
+    # перед циклом или через функцию
+    screen.fill(BG_COLOR_TEMA_MENU_1 if Bg_flag else BG_COLOR_TEMA_MENU_2)
     
     for btn in menu_buttons:
         btn.check_hover(mouse_pos)
@@ -129,14 +141,14 @@ while running:
 
     if show_settings:
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        overlay.fill(DARK_OVERLAY)
+        overlay.fill(DARK_OVERLAY_MENU)
         screen.blit(overlay, (0, 0))
 
         settings_rect = pygame.Rect(SETTINGS_X, SETTINGS_Y, SETTINGS_W, SETTINGS_H)
-        pygame.draw.rect(screen, BG_COLOR, settings_rect, border_radius=15)
-        pygame.draw.rect(screen, BUTTON_COLOR, settings_rect, width=5, border_radius=15)
+        pygame.draw.rect(screen, BG_COLOR_TEMA_MENU_1, settings_rect, border_radius=15)
+        pygame.draw.rect(screen, BUTTON_COLOR_MENU, settings_rect, width=5, border_radius=15)
 
-        title_surf = font_large.render("Настройки", True, BUTTON_COLOR)
+        title_surf = font_large.render("Настройки", True, BUTTON_COLOR_MENU)
         screen.blit(title_surf, (SETTINGS_X + 20, SETTINGS_Y + 20))
 
         btn_close.check_hover(mouse_pos)

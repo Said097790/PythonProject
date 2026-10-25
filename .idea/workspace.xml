@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="edeb0c23-00df-4922-b8c2-e33dd635214f" name="Changes" comment="Test11">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TestD/Test.py" beforeDir="false" afterPath="$PROJECT_DIR$/TestD/Test.py" afterDir="false" />
-    </list>
+    <list default="true" id="edeb0c23-00df-4922-b8c2-e33dd635214f" name="Changes" comment="0.02 темка от саида" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -53,6 +50,7 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Python.Test.executor": "Run",
+    "Python.main.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "master",
@@ -61,6 +59,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\turab\PycharmProjects\PythonProject" />
       <recent name="C:\Users\turab\PycharmProjects\PythonProject\TestD" />
     </key>
   </component>
@@ -103,7 +102,23 @@
       <option name="project" value="LOCAL" />
       <updated>1792746091716</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="0.01">
+      <option name="closed" value="true" />
+      <created>1792912252217</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1792912252217</updated>
+    </task>
+    <task id="LOCAL-00005" summary="0.02 темка от саида">
+      <option name="closed" value="true" />
+      <created>1792914351147</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1792914351147</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -134,6 +149,8 @@
     <MESSAGE value="Test" />
     <MESSAGE value="Revert &quot;1&quot;&#10;&#10;This reverts commit 428cde7eb627aacbe6ca88722f8e2f7b04ed8c71." />
     <MESSAGE value="Test11" />
-    <option name="LAST_COMMIT_MESSAGE" value="Test11" />
+    <MESSAGE value="0.01" />
+    <MESSAGE value="0.02 темка от саида" />
+    <option name="LAST_COMMIT_MESSAGE" value="0.02 темка от саида" />
   </component>
 </project>
