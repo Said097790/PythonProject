@@ -5,9 +5,6 @@ import random
 import json
 import os
 
-# =========================================================
-# --- 1. НАСТРОЙКА ОКНА И ОСНОВНЫЕ КОНСТАНТЫ ---
-# =========================================================
 pygame.init()
 
 infoObject = pygame.display.Info()
@@ -16,17 +13,14 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption("Карьерный Дрейф")
 clock = pygame.time.Clock()
 
-# --- Состояние игры ---
 state = "menu"
 Bg_flag = True
 
-# --- Переменные игрока ---
 Px = WIDTH // 2
 Py = HEIGHT // 2
 Pr = 15
 Ps = 5
 
-# --- Цвета ---
 BG_COLOR_TEMA_MENU_1 = (20, 20, 20)
 BG_COLOR_TEMA_MENU_2 = (255, 255, 255)
 BUTTON_COLOR_MENU = (30, 144, 255)
@@ -40,44 +34,31 @@ WALL_COLOR = (100, 80, 60)
 DOOR_COLOR = (139, 69, 19)
 TRASH_COLOR = (100, 100, 100)
 PALETTE_GARBAGEWE = [
-    (10, 10, 10),
-    (30, 30, 30),
-    (50, 50, 50),
-    (70, 70, 70),
-    (80, 80, 80),
-    (100, 100, 100),
-    (120, 120, 120),
-    (140, 140, 140),
-    (160, 160, 160),
-    (180, 180, 180),
-    (200, 200, 200),
-    (220, 220, 220),
-    (240, 240, 240),
+    (10, 10, 10), (30, 30, 30), (50, 50, 50), (70, 70, 70), (80, 80, 80),
+    (100, 100, 100), (120, 120, 120), (140, 140, 140), (160, 160, 160),
+    (180, 180, 180), (200, 200, 200), (220, 220, 220), (240, 240, 240),
 ]
 RED_COLOR = (220, 20, 60)
 
-# --- Шрифты ---
 font_large = pygame.font.Font(None, 80)
 font_medium = pygame.font.Font(None, 40)
 font_small = pygame.font.Font(None, 32)
 
-# --- ВРЕМЯ ---
 base_shift_duration = 60
 shift_time_left = base_shift_duration
 
 def get_shift_duration(shift):
-    """Длительность смены: 1-я — 60с, каждая следующая +20с."""
     return base_shift_duration + (shift - 1) * 20
 
 
 # =========================================================
-# --- 2. СИСТЕМА СОХРАНЕНИЙ (JSON) ---
+# --- СОХРАНЕНИЯ ---
 # =========================================================
 def get_save_file(slot):
     return f"save_slot_{slot}.json"
 
-def save_game(slot, shift, xp):
-    data = {"shift": shift, "xp": xp}
+def save_game(slot, shift, xp, money, market_data):
+    data = {"shift": shift, "xp": xp, "money": money, "market_data": market_data}
     path = get_save_file(slot)
     tmp = path + ".tmp"
     try:
@@ -93,10 +74,13 @@ def load_game(slot):
         try:
             with open(path, "r") as f:
                 data = json.load(f)
-                return data.get("shift", 1), data.get("xp", 0)
+                return (data.get("shift", 1),
+                        data.get("xp", 0),
+                        data.get("money", 0),
+                        data.get("market_data", []))
         except (json.JSONDecodeError, OSError):
-            return None, None
-    return None, None
+            return None, None, None, None
+    return None, None, None, None
 
 def delete_save(slot):
     path = get_save_file(slot)
@@ -106,17 +90,18 @@ def delete_save(slot):
 current_slot = None
 current_shift = 1
 player_xp = 0
+player_money = 0
+market_data = []
 target_xp = 50 + (current_shift * 30)
 game_over_reason = ""
 garbage_spawn_delay = 0
 max_garbage_on_map = 3 + current_shift
 
-# --- Задержка между спавнами мусора (секунды) ---
 GARBAGE_SPAWN_INTERVAL = 2.0
 
 
 # =========================================================
-# --- 3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+# --- ВСПОМОГАТЕЛЬНЫЕ ---
 # =========================================================
 def draw_text_wrapped(surface, text, font, color, x, y, max_width):
     words = text.split(' ')
@@ -136,7 +121,7 @@ def draw_text_wrapped(surface, text, font, color, x, y, max_width):
 
 
 # =========================================================
-# --- 4. КЛАССЫ ---
+# --- КЛАССЫ ---
 # =========================================================
 class Button:
     def __init__(self, x, y, width, height, text, font, color=BUTTON_COLOR_MENU, hover_color=HOVER_COLOR_MENU):
@@ -247,7 +232,6 @@ class Garbage:
         self.x, self.y = x, y
         self.radius = 15
         self.collected = False
-
         self.pieces = []
         count = random.randint(3, 6)
         for _ in range(count):
@@ -268,43 +252,37 @@ class Garbage:
 def draw_carried_garbage(surface, px, py, count, colors):
     if count <= 0:
         return
-
     shown = min(count, 5)
     base_x = px
     base_y = py - 22
     spacing = 9
     total_w = (shown - 1) * spacing
     start_x = base_x - total_w // 2
-
     for i in range(shown):
         color = colors[i] if i < len(colors) else (80, 80, 80)
         ox = start_x + i * spacing
         oy = base_y - (3 if i % 2 == 0 else 0)
         pygame.draw.circle(surface, color, (int(ox), int(oy)), 5)
         pygame.draw.circle(surface, (0, 0, 0), (int(ox), int(oy)), 5, 1)
-
     if count > 5:
         extra = font_small.render(f"+{count - 5}", True, (255, 255, 255))
         surface.blit(extra, (base_x + total_w // 2 + 10, base_y - 10))
 
 
 # =========================================================
-# --- 5. ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА И ОБЪЕКТОВ ---
+# --- ИНТЕРФЕЙС ---
 # =========================================================
-# --- Меню ---
 btn_play = Button(WIDTH // 2 - 200, HEIGHT // 2 - 150, 400, 100, "PLAY", font_large)
 btn_save = Button(WIDTH // 2 - 350, HEIGHT // 2 + 50, 300, 80, "Сохранение", font_medium)
 btn_settings = Button(WIDTH // 2 + 50, HEIGHT // 2 + 50, 300, 80, "Настройки", font_medium)
 btn_tema = Button(WIDTH - 150, 20, 120, 60, "Тема", font_small)
 menu_buttons = [btn_play, btn_save, btn_settings, btn_tema]
 
-# --- Кнопки слотов сохранения ---
 btn_slot1 = Button(WIDTH // 2 - 250, HEIGHT // 2 - 100, 400, 80, "Слот 1", font_medium)
 btn_slot2 = Button(WIDTH // 2 - 250, HEIGHT // 2, 400, 80, "Слот 2", font_medium)
 btn_slot3 = Button(WIDTH // 2 - 250, HEIGHT // 2 + 100, 400, 80, "Слот 3", font_medium)
 slot_buttons = [btn_slot1, btn_slot2, btn_slot3]
 
-# Кнопки удаления слотов
 btn_del1 = Button(WIDTH // 2 + 170, HEIGHT // 2 - 100, 80, 80, "X", font_medium, color=RED_COLOR, hover_color=(255, 50, 50))
 btn_del2 = Button(WIDTH // 2 + 170, HEIGHT // 2, 80, 80, "X", font_medium, color=RED_COLOR, hover_color=(255, 50, 50))
 btn_del3 = Button(WIDTH // 2 + 170, HEIGHT // 2 + 100, 80, 80, "X", font_medium, color=RED_COLOR, hover_color=(255, 50, 50))
@@ -312,7 +290,6 @@ delete_buttons = [btn_del1, btn_del2, btn_del3]
 
 btn_back = Button(50, 50, 150, 60, "Назад", font_medium)
 
-# --- Настройки ---
 SETTINGS_W, SETTINGS_H = 500, 400
 SETTINGS_X, SETTINGS_Y = (WIDTH - SETTINGS_W) // 2, (HEIGHT - SETTINGS_H) // 2
 btn_close = Button(SETTINGS_X + SETTINGS_W - 60, SETTINGS_Y + 10, 50, 50, "X", font_small)
@@ -320,10 +297,8 @@ slider_music = Slider(SETTINGS_X + 50, SETTINGS_Y + 120, 400, "Музыка")
 slider_sfx = Slider(SETTINGS_X + 50, SETTINGS_Y + 240, 400, "Звуки")
 show_settings = False
 
-# --- Фон меню ---
 floor_bg = MovingFloor(WIDTH, HEIGHT)
 
-# --- Столы ---
 tables = [
     RoundTable(WIDTH // 4, HEIGHT // 4, 80),
     RoundTable(WIDTH // 2, HEIGHT // 4, 80),
@@ -333,22 +308,54 @@ tables = [
     RoundTable(WIDTH - (WIDTH // 4), HEIGHT - (HEIGHT // 4), 80)
 ]
 
-# --- Кнопка "Меню" внутри игры ---
 btn_menu_game = Button(WIDTH - 160, 20, 130, 50, "Меню", font_small)
 show_pause_menu = False
 
-# --- Окно паузы ---
-PAUSE_W, PAUSE_H = 400, 600
+PAUSE_W, PAUSE_H = 400, 500
 PAUSE_X, PAUSE_Y = (WIDTH - PAUSE_W) // 2, (HEIGHT - PAUSE_H) // 2
-btn_pause_exit_in_game = Button(PAUSE_X + 50, PAUSE_Y + 100, 300, 70, "Вернуться в игру", font_medium)
+btn_continue = Button(PAUSE_X + 50, PAUSE_Y + 100, 300, 70, "Продолжить", font_medium)
 btn_pause_save = Button(PAUSE_X + 50, PAUSE_Y + 200, 300, 70, "Сохраниться", font_medium)
 btn_pause_settings = Button(PAUSE_X + 50, PAUSE_Y + 300, 300, 70, "Настройки", font_medium)
 btn_pause_exit = Button(PAUSE_X + 50, PAUSE_Y + 400, 300, 70, "Выйти", font_medium)
-pause_buttons = [btn_pause_save, btn_pause_settings, btn_pause_exit, btn_pause_exit_in_game]
+pause_buttons = [btn_pause_save, btn_pause_settings, btn_pause_exit, btn_continue]
 
-btn_continue = Button(WIDTH // 2 - 150, HEIGHT // 2 + 150, 300, 80, "Продолжить", font_medium)
+# --- Магазин ---
+Market_W, Market_H = 500, 500
+MARKET_X, MARKET_Y = (WIDTH - Market_W) // 2, (HEIGHT - Market_H) // 2
 
-# --- Сюжетный диалог ---
+MARKET_ITEMS = [
+    {"id": "speed", "name": "Быстрые ботинки", "price": 30, "desc": "+1 к скорости"},
+    {"id": "bag",   "name": "Большая сумка",   "price": 25, "desc": "+5 к вместимости"},
+    {"id": "time",  "name": "Часы",            "price": 40, "desc": "+15 сек к смене"},
+]
+
+btn_market_next = Button(MARKET_X + 50, MARKET_Y + 420, 400, 60, "Дальше", font_medium)
+market_item_buttons = []
+for i, item in enumerate(MARKET_ITEMS):
+    bx = MARKET_X + 30
+    by = MARKET_Y + 100 + i * 100
+    market_item_buttons.append(Button(bx, by, 440, 75, "", font_small))
+
+
+def player_has(item_id):
+    return item_id in market_data
+
+
+def can_buy(item):
+    return (not player_has(item["id"])) and player_money >= item["price"]
+
+
+def buy_item(item):
+    global player_money, Ps
+    if not can_buy(item):
+        return
+    player_money -= item["price"]
+    market_data.append(item["id"])
+    if item["id"] == "speed":
+        Ps += 1
+
+
+# --- Диалог ---
 dialogue_stage = 0
 dialogue_texts = [
     "Директор: Здравствуйте! Вы кто такой?",
@@ -358,7 +365,7 @@ dialogue_texts = [
     "Директор: Отлично! Твоя задача: собери мусор возле столов и выкинь его в бак."
 ]
 
-# --- Мусорный бак и мусор ---
+# --- Мусор ---
 trash_can_rect = pygame.Rect(WIDTH - 150, HEIGHT // 2 - 50, 80, 100)
 garbage_items = []
 garbage_collected = 0
@@ -373,8 +380,9 @@ def spawn_garbage():
     gy = t.y + math.sin(angle) * distance
     return Garbage(gx, gy)
 
+
 def start_shift():
-    global state, Px, Py, garbage_items, garbage_collected, garbage_in_inventory, shift_time_left, player_xp, target_xp, max_garbage_on_map, garbage_spawn_delay
+    global state, Px, Py, garbage_items, garbage_collected, garbage_in_inventory, shift_time_left, player_xp, target_xp, max_garbage_on_map, garbage_spawn_delay, Ps
     state = "game_janitor"
     Px, Py = WIDTH // 2, HEIGHT // 2
     garbage_items.clear()
@@ -388,12 +396,16 @@ def start_shift():
     garbage_in_inventory = 0
     carried_colors.clear()
     shift_time_left = get_shift_duration(current_shift)
+    if player_has("time"):
+        shift_time_left += 15
     player_xp = 0
     garbage_spawn_delay = 0
+    # пересчёт Ps по купленным улучшениям (страховка)
+    Ps = 5 + (1 if player_has("speed") else 0)
 
 
 # =========================================================
-# --- 6. ГЛАВНЫЙ ЦИКЛ ИГРЫ ---
+# --- ГЛАВНЫЙ ЦИКЛ ---
 # =========================================================
 running = True
 while running:
@@ -403,23 +415,23 @@ while running:
     if state in ["menu", "slots"]:
         floor_bg.update(dt)
 
-    # --- ОБРАБОТКА СОБЫТИЙ ---
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
 
-        # --- МЕНЮ ---
         if state == "menu":
             if not show_settings:
                 if btn_play.check_click(mouse_pos, event):
                     if current_slot is None:
                         state = "slots"
                     else:
-                        saved_shift, saved_xp = load_game(current_slot)
+                        saved_shift, saved_xp, saved_money, saved_market = load_game(current_slot)
                         if saved_shift is not None:
                             current_shift = saved_shift
+                            player_money = saved_money
+                            market_data = saved_market
                             if current_shift == 1:
                                 state = "street"
                                 Px, Py = WIDTH // 2, HEIGHT - 150
@@ -439,7 +451,6 @@ while running:
                 slider_music.handle_event(event)
                 slider_sfx.handle_event(event)
 
-        # --- ЭКРАН ВЫБОРА СЛОТОВ ---
         elif state == "slots":
             if btn_back.check_click(mouse_pos, event):
                 state = "menu"
@@ -447,18 +458,19 @@ while running:
             for i, btn in enumerate(slot_buttons):
                 if btn.check_click(mouse_pos, event):
                     current_slot = i + 1
-                    saved_shift, saved_xp = load_game(current_slot)
-
+                    saved_shift, saved_xp, saved_money, saved_market = load_game(current_slot)
                     if saved_shift is not None:
                         current_shift = saved_shift
+                        player_money = saved_money
+                        market_data = saved_market
                         player_xp = 0
-                        state = "menu"
-                        print(f"Выбран слот {current_slot}, смена {current_shift}")
                     else:
                         current_shift = 1
+                        player_money = 0
+                        market_data = []
                         player_xp = 0
-                        state = "menu"
-                        print(f"Выбран пустой слот {current_slot}")
+                    state = "menu"
+                    print(f"Выбран слот {current_slot}, смена {current_shift}")
 
             for i, btn_del in enumerate(delete_buttons):
                 slot_num = i + 1
@@ -468,26 +480,22 @@ while running:
                         if current_slot == slot_num:
                             current_slot = None
 
-        # --- УЛИЦА ---
         elif state == "street":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 state = "inside"
                 Px, Py = 150, HEIGHT // 2
 
-        # --- ВНУТРИ РЕСТОРАНА ---
         elif state == "inside":
             if Px > WIDTH - 200 and Py > HEIGHT // 2 - 150 and Py < HEIGHT // 2 + 150:
                 state = "dialogue"
                 dialogue_stage = 0
 
-        # --- ДИАЛОГ ---
         elif state == "dialogue":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 dialogue_stage += 1
                 if dialogue_stage >= len(dialogue_texts):
                     start_shift()
 
-        # --- ГЕЙМПЛЕЙ УБОРЩИКА ---
         elif state == "game_janitor":
             if not show_pause_menu and not show_settings:
                 if btn_menu_game.check_click(mouse_pos, event):
@@ -500,38 +508,40 @@ while running:
                             garbage_in_inventory = 0
                             carried_colors.clear()
                             player_xp += 15
-
+                            player_money += 5
                             if player_xp >= target_xp:
                                 game_over_reason = "success"
-                                save_game(current_slot, current_shift, player_xp)
+                                save_game(current_slot, current_shift, player_xp, player_money, market_data)
                                 state = "shift_end"
                     else:
-                        for g in garbage_items:
-                            if not g.collected:
-                                dist = math.hypot(Px - g.x, Py - g.y)
-                                if dist < Pr + g.radius + 40:
-                                    g.collected = True
-                                    garbage_in_inventory += 1
-                                    garbage_collected += 1
-                                    carried_colors.append(random.choice(g.pieces)[3])
-                                    break
+                        bag_limit = 5 + (5 if player_has("bag") else 0)
+                        if garbage_in_inventory < bag_limit:
+                            for g in garbage_items:
+                                if not g.collected:
+                                    dist = math.hypot(Px - g.x, Py - g.y)
+                                    if dist < Pr + g.radius + 40:
+                                        g.collected = True
+                                        garbage_in_inventory += 1
+                                        garbage_collected += 1
+                                        carried_colors.append(random.choice(g.pieces)[3])
+                                        break
 
             elif show_pause_menu and not show_settings:
-                if btn_pause_exit_in_game.check_click(mouse_pos, event):
+                if btn_continue.check_click(mouse_pos, event):
                     show_pause_menu = False
                 if btn_pause_save.check_click(mouse_pos, event):
-                    save_game(current_slot, current_shift, player_xp)
+                    save_game(current_slot, current_shift, player_xp, player_money, market_data)
                     print(f"Сохранено в слот {current_slot}!")
                 if btn_pause_settings.check_click(mouse_pos, event): show_settings = True
                 if btn_pause_exit.check_click(mouse_pos, event):
                     state = "menu"
                     show_pause_menu = False
+
             elif show_settings:
                 if btn_close.check_click(mouse_pos, event): show_settings = False
                 slider_music.handle_event(event)
                 slider_sfx.handle_event(event)
 
-        # --- ЭКРАН КОНЦА СМЕНЫ ---
         elif state == "shift_end":
             if btn_continue.check_click(mouse_pos, event):
                 if game_over_reason == "success":
@@ -539,32 +549,36 @@ while running:
                     if current_shift > 5:
                         game_over_reason = "game_win"
                         delete_save(current_slot)
-                    else:
-                        save_game(current_slot, current_shift, player_xp)
                         state = "menu"
+                    else:
+                        save_game(current_slot, current_shift, player_xp, player_money, market_data)
+                        state = "market"    # ← в магазин
                 else:
                     current_shift = 1
                     delete_save(current_slot)
                     state = "menu"
                 show_pause_menu = False
 
+        elif state == "market":
+            for i, btn in enumerate(market_item_buttons):
+                if btn.check_click(mouse_pos, event):
+                    buy_item(MARKET_ITEMS[i])
+            if btn_market_next.check_click(mouse_pos, event):
+                save_game(current_slot, current_shift, player_xp, player_money, market_data)
+                start_shift()
 
-    # =========================================================
-    # --- 7. ЛОГИКА (ДВИЖЕНИЕ И ТАЙМЕРЫ) ---
-    # =========================================================
+    # --- ЛОГИКА ---
     if state == "game_janitor" and not show_pause_menu and not show_settings:
         shift_time_left -= dt
-
         if shift_time_left <= 0:
             shift_time_left = 0
             if player_xp >= target_xp:
                 game_over_reason = "success"
-                save_game(current_slot, current_shift, player_xp)
+                save_game(current_slot, current_shift, player_xp, player_money, market_data)
             else:
                 game_over_reason = "fail"
             state = "shift_end"
 
-        # --- Спавн мусора: не чаще, чем раз в 2 секунды ---
         garbage_spawn_delay += dt
         if garbage_spawn_delay >= GARBAGE_SPAWN_INTERVAL:
             active_garbage = [g for g in garbage_items if not g.collected]
@@ -579,10 +593,8 @@ while running:
         if keys[pygame.K_w] or keys[pygame.K_UP]:    dy -= Ps
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:  dy += Ps
         if dx and dy: dx *= 0.7071; dy *= 0.7071
-
         Px = max(Pr, min(Px + dx, WIDTH - Pr))
         Py = max(Pr, min(Py + dy, HEIGHT - Pr))
-
         for t in tables:
             Px, Py = t.collide_and_resolve(Px, Py, Pr)
 
@@ -599,20 +611,15 @@ while running:
         for t in tables:
             Px, Py = t.collide_and_resolve(Px, Py, Pr)
 
-
-    # =========================================================
-    # --- 8. ОТРИСОВКА ---
-    # =========================================================
+    # --- ОТРИСОВКА ---
     if state == "menu":
         floor_bg.draw(screen, Bg_flag)
         for btn in menu_buttons:
             btn.check_hover(mouse_pos)
             btn.draw(screen)
-
         if current_slot is not None:
             slot_text = font_medium.render(f"Активный слот: {current_slot}", True, (255, 255, 255))
             screen.blit(slot_text, (20, 20))
-
         if show_settings:
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             overlay.fill(DARK_OVERLAY_MENU)
@@ -628,22 +635,18 @@ while running:
         screen.fill(BG_COLOR_TEMA_MENU_1)
         title = font_large.render("ВЫБЕРИТЕ СЛОТ", True, BUTTON_COLOR_MENU)
         screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
-
         for i, btn in enumerate(slot_buttons):
             btn.check_hover(mouse_pos)
-
-            saved_shift, saved_xp = load_game(i + 1)
+            saved_shift, saved_xp, saved_money, saved_market = load_game(i + 1)
             if saved_shift is not None:
                 btn.text = f"Слот {i+1} (Смена {saved_shift})"
                 btn.draw(screen)
-
                 del_btn = delete_buttons[i]
                 del_btn.check_hover(mouse_pos)
                 del_btn.draw(screen)
             else:
                 btn.text = f"Слот {i+1} (Пусто)"
                 btn.draw(screen)
-
         btn_back.check_hover(mouse_pos)
         btn_back.draw(screen)
 
@@ -709,20 +712,21 @@ while running:
             btn_menu_game.check_hover(mouse_pos)
             btn_menu_game.draw(screen)
 
-        task_bg = pygame.Surface((500, 160), pygame.SRCALPHA)
+        task_bg = pygame.Surface((500, 220), pygame.SRCALPHA)
         task_bg.fill((0, 0, 0, 150))
         screen.blit(task_bg, (WIDTH - 520, 90))
-
         mins = int(shift_time_left) // 60
         secs = int(shift_time_left) % 60
         time_str = f"Смена {current_shift}/5 | Время: {mins:02d}:{secs:02d}"
         time_text = font_small.render(time_str, True, (255, 255, 255))
         screen.blit(time_text, (WIDTH - 500, 100))
-
         xp_color = (0, 255, 0) if player_xp >= target_xp else (255, 215, 0)
         xp_str = f"Опыт: {player_xp} / {target_xp}"
         xp_text = font_small.render(xp_str, True, xp_color)
         screen.blit(xp_text, (WIDTH - 500, 135))
+        money_str = f"Деньги: {player_money}"
+        money_text = font_small.render(money_str, True, (255, 215, 0))
+        screen.blit(money_text, (WIDTH - 500, 170))
 
         if show_pause_menu and not show_settings:
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -747,9 +751,36 @@ while running:
             slider_music.draw(screen)
             slider_sfx.draw(screen)
 
+    elif state == "market":
+        screen.fill((30, 40, 50))
+        pygame.draw.rect(screen, BG_COLOR_TEMA_MENU_1, (MARKET_X, MARKET_Y, Market_W, Market_H), border_radius=15)
+        pygame.draw.rect(screen, BUTTON_COLOR_MENU, (MARKET_X, MARKET_Y, Market_W, Market_H), width=5, border_radius=15)
+        market_title = font_large.render("Магазин", True, BUTTON_COLOR_MENU)
+        screen.blit(market_title, (WIDTH//2 - market_title.get_width()//2, MARKET_Y + 15))
+        money_str = font_medium.render(f"Деньги: {player_money}", True, (255, 215, 0))
+        screen.blit(money_str, (MARKET_X + 30, MARKET_Y + 60))
+
+        for i, item in enumerate(MARKET_ITEMS):
+            btn = market_item_buttons[i]
+            btn.check_hover(mouse_pos)
+            if player_has(item["id"]):
+                btn.color = (80, 200, 80)
+                btn.text = f"{item['name']} — Куплено"
+            elif player_money >= item["price"]:
+                btn.color = BUTTON_COLOR_MENU
+                btn.text = f"{item['name']} — {item['price']}"
+            else:
+                btn.color = (120, 120, 120)
+                btn.text = f"{item['name']} — {item['price']} (нет денег)"
+            btn.draw(screen)
+            desc = font_small.render(item["desc"], True, (200, 200, 200))
+            screen.blit(desc, (MARKET_X + 30, MARKET_Y + 145 + i * 100))
+
+        btn_market_next.check_hover(mouse_pos)
+        btn_market_next.draw(screen)
+
     elif state == "shift_end":
         screen.fill((20, 30, 40))
-
         if game_over_reason == "success":
             if current_shift >= 5:
                 title = font_large.render("ВЫ СТАЛИ ДИРЕКТОРОМ!", True, (0, 255, 0))
@@ -760,10 +791,8 @@ while running:
         else:
             title = font_large.render("ВАС УВОЛИЛИ!", True, (255, 0, 0))
             desc = font_medium.render("Вы не набрали нужный опыт. Прогресс сброшен.", True, (255, 255, 255))
-
         screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 100))
         screen.blit(desc, (WIDTH // 2 - desc.get_width() // 2, HEIGHT // 2 - 20))
-
         btn_continue.check_hover(mouse_pos)
         btn_continue.draw(screen)
 
